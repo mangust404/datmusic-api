@@ -100,6 +100,19 @@ trait DownloaderTrait
 
         // filename including extension
         $filePath = sprintf('%s.mp3', hash(config('app.hash.mp3'), $id));
+
+        if (config('app.paths.subfolders') > 0) {
+            $subfolder = '';
+            for ($i = 0; $i < config('app.paths.subfolders'); $i++) {
+                $subfolder .= $filePath{$i} . '/';
+            }
+            $filePath = $subfolder . $filePath;
+
+            if (!is_dir(config('app.paths.mp3') . '/' . $subfolder)) {
+                mkdir(config('app.paths.mp3') . '/' . $subfolder, 0550, TRUE);
+            }
+        }
+
         // used for bitrate converting when using s3
         $localPath = sprintf('%s/%s', config('app.paths.mp3'), $filePath);
 
@@ -109,6 +122,11 @@ trait DownloaderTrait
             $path = sprintf('s3://%s/%s', config('app.aws.bucket'), $s3PathWithFolder);
         } else {
             $path = $localPath;
+            $dirname = dirname($path);
+            if (!is_dir($dirname)) {
+              // Create subdirectory recursively
+              mkdir($dirname, 0750, TRUE);
+            }
         }
 
         // cache check only for s3.

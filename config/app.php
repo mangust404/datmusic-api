@@ -11,6 +11,11 @@ return [
     'paths' => [
         'cookie' => storage_path('app/cookies/%s.json'),
         'mp3' => storage_path('app/public/mp3'),
+        // Storing a huge amount of files in single directory leads to
+        // performance problems so files could be stored in subdirectories, e.g.
+        // for subfolders = 2 file called "48403cf2d912859ae6cf339e1d34ef21.mp3"
+        // will be stored in mp3/4/8/ subfolder.
+        'subfolders' => 0,
     ],
 
     // hashing algorithms

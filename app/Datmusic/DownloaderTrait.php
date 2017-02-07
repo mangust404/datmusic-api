@@ -138,7 +138,7 @@ trait DownloaderTrait
             $this->s3StreamContext = $this->buildS3StreamContextOptions($name);
         }
 
-        if (!config('app.conversion.disable') && $stream) {
+        if (config('app.conversion.disable') && $stream) {
             if (@file_exists($path)) {
                 // Immediate response
                 if ($this->isS3) {

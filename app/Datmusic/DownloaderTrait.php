@@ -124,24 +124,39 @@ trait DownloaderTrait
             $this->s3StreamContext = $this->buildS3StreamContextOptions($name);
         }
 
-        if (@file_exists($path) || $this->downloadFile($item['mp3'], $path)) {
-            $convertResult = $this->bitrateConvert($bitrate, $path, $localPath, $filePath);
-
-            if ($convertResult != false) {
-                list($filePath, $path) = $convertResult;
-            }
-
-            if ($this->isS3) {
-                return redirect($this->buildS3Url($filePath));
-            } else {
-                if ($stream) {
-                    return redirect("mp3/$filePath");
+        if (!config('app.conversion.disable') && $stream) {
+            if (@file_exists($path)) {
+                // Immediate response
+                if ($this->isS3) {
+                    return redirect($this->buildS3Url($filePath));
                 } else {
-                    return $this->downloadResponse($path, $name);
+                    return redirect("mp3/$filePath");
                 }
             }
+
+            $this->streamFile($item['mp3'], $path);
         } else {
-            abort(404);
+            if (@file_exists($path) || $this->downloadFile($item['mp3'], $path)) {
+                if (!config('app.conversion.disable')) {
+                    $convertResult = $this->bitrateConvert($bitrate, $path, $localPath, $filePath);
+
+                    if ($convertResult != false) {
+                        list($filePath, $path) = $convertResult;
+                    }
+                }
+                if ($this->isS3) {
+                    return redirect($this->buildS3Url($filePath));
+                } else {
+                    if ($stream) {
+                        return redirect("mp3/$filePath");
+                    } else {
+                        return $this->downloadResponse($path, $name);
+                    }
+                }
+            } else {
+                abort(404);
+            }
+
         }
         return 0;
     }
@@ -244,6 +259,101 @@ trait DownloaderTrait
         fclose($handle);
 
         return true;
+    }
+
+    /**
+     * Stream given file into User's browser by url and put it into
+     * cache to given path
+     * @param string $url
+     * @param string $path
+     * @param resource $context stream context options when opening $path
+     * @return bool true if succeeds
+     */
+    function streamFile($url, $path) {
+        $filesize = $this->getFileSize($url);
+
+        header("Content-Length: $filesize");
+        header('Content-Type: audio/mpeg');
+
+        if ($this->s3StreamContext == null) {
+            $handle = fopen($path, 'w');
+        } else {
+            $handle = fopen($path, 'w', false, $this->s3StreamContext);
+        }
+
+        $request = new \cURL\Request($url);
+
+        $request->getOptions()
+                ->set(CURLOPT_HEADER, 0)
+                ->set(CURLOPT_FAILONERROR, 1)
+                ->set(CURLOPT_CONNECTTIMEOUT, config('app.downloading.timeout.connection'))
+                ->set(CURLOPT_TIMEOUT, config('app.downloading.timeout.execution'));
+
+        ob_start();
+        // Store a chunks of output buffer in a separate variable.
+        $content = '';
+
+        while ($request->socketPerform()) {
+            // do anything else when the requests are processed
+            $request->socketSelect();
+            // line below pauses execution until there's new data on socket
+            $content = ob_get_contents();
+            fwrite($handle, $content, strlen($content));
+
+            ob_flush();
+            ob_clean();
+        }
+
+        // We should ensure that output buffer is completely written into a file.
+        $content = ob_get_contents();
+        fwrite($handle, $content, strlen($content));
+        ob_flush();
+        ob_clean();
+
+        // if curl had errors
+        if (curl_errno($request->getHandler()) > 0) {
+            // remove the file just in case
+            @unlink($path);
+            return false;
+        }
+
+        fclose($handle);
+        curl_close($curl);
+
+        return $result;
+    }
+
+    /**
+     * Get the size of remote file
+     * @param string $url
+     * @return int file size if succeeds
+     */
+    function getFileSize($url)
+    {
+
+        $curl = curl_init($url);
+        curl_setopt($curl, CURLOPT_NOBODY, 1);
+        curl_setopt($curl, CURLOPT_HEADER, 1);
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($curl, CURLOPT_FAILONERROR, 1);
+        curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, config('app.downloading.timeout.connection'));
+        curl_setopt($curl, CURLOPT_TIMEOUT, config('app.downloading.timeout.execution'));
+        $data = curl_exec($curl);
+
+        // if curl had errors
+        if (curl_errno($curl) > 0) {
+            // remove the file just in case
+            @unlink($path);
+            return false;
+        }
+
+        $content_length = 0;
+
+        if (preg_match( "/Content-Length: (\d+)/", $data, $matches)) {
+            $content_length = (int)$matches[1];
+        }
+
+        return $content_length;
     }
 
     /**

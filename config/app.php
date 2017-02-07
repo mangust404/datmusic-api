@@ -52,6 +52,8 @@ return [
     ],
 
     'conversion' => [
+        // Completely disable conversion, required for immediate stream mode.
+        'disable' => false,
         //popular bitrates: economy, standard, good
         'allowed' => [64, 128, 192],
         'allowed_ffmpeg' => ["-q:a 9", "-q:a 5", "-q:a 2"],

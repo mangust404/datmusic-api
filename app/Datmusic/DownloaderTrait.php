@@ -107,10 +107,6 @@ trait DownloaderTrait
                 $subfolder .= $filePath{$i} . '/';
             }
             $filePath = $subfolder . $filePath;
-
-            if (!is_dir(config('app.paths.mp3') . '/' . $subfolder)) {
-                mkdir(config('app.paths.mp3') . '/' . $subfolder, 0550, TRUE);
-            }
         }
 
         // used for bitrate converting when using s3

@@ -139,7 +139,10 @@ trait DownloaderTrait
         }
 
         if (config('app.conversion.disable') && $stream) {
-            if (@file_exists($path)) {
+            $exists = @file_exists($path);
+            if ($exists && filesize($path) == 0) {
+                unlink($path);
+            } else if ($exists) {
                 // Immediate response
                 if ($this->isS3) {
                     return redirect($this->buildS3Url($filePath));

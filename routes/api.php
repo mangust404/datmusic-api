@@ -10,3 +10,4 @@ $app->get('dl/{key}/{id}', 'ApiController@download');
 $app->get('dl/{key}/{id}/{bitrate}', 'ApiController@bitrateDownload');
 $app->get('stream/{key}/{id}', 'ApiController@stream');
 $app->get('bytes/{key}/{id}', 'ApiController@bytes');
+$app->get('info/{key}/{id}', 'ApiController@info');

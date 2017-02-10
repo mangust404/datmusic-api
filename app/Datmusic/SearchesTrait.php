@@ -110,7 +110,7 @@ trait SearchesTrait
         $query = urlencode($query);
         $httpClient = HttpClient::getInstance()->getClient();
         return $httpClient->get(
-            "audio?act=search&q=$query&offset=$offset",
+            "audio?act=search&q= $query&offset=$offset",
             ['cookies' => $this->jar]
         );
     }
@@ -204,4 +204,19 @@ trait SearchesTrait
     {
         return preg_replace(config('app.search.badWordsRegex'), '', $string);
     }
+
+    /**
+     * Get audio info by key and id from cache.
+     * @return array
+     */
+    public function info($key, $id)
+    {
+        $info = $this->getAudio($key, $id);
+        if (!empty($info)) {
+            unset($info['mp3'], $info['id']);
+            return $this->ok($info);
+        }
+        abort(404);
+    }
+
 }
